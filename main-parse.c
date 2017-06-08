@@ -1,4 +1,4 @@
-#include "parse.h"
+#include "parse.c"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -45,33 +45,29 @@ int main(int argc, char *argv[])
     	Parse(line, &cmdLine);
 
 
-      // from here the cmdLine struct is filled up.
-    	// printf("%d: ", cmdLine.numCommands);
-      //
-    	// if(cmdLine.infile) {
-    	//     printf("< '%s' ", cmdLine.infile);
-      // }
-
-
     	for(i=0; i < cmdLine.numCommands; i++)
     	{
           // beginning of each command, so pipe and fork should have happened here.
+          if (strcmp(cmdLine.argv[cmdLine.cmdStart[i]],"exit") == 0 ) {
+            return 0;
+          }
+
           pid_t pid = fork();
 
           if (pid == 0) { // child process
             for(int j=cmdLine.cmdStart[i]; cmdLine.argv[j] != NULL; j++) {
-              execvp(cmdLine.argv[j], cmdLine.argv);
+              if(execvp(cmdLine.argv[j], cmdLine.argv) == -1) {
+                // perror(cmdLine.argv[j]); // not sure if I should print this message
+                printf("nsh: %s: command not found\n", cmdLine.argv[j]);
+              }
+              exit(EXIT_FAILURE); // if it arrives at this point it means that an error has been prompted
             }
           } else { // parent process
             wait(NULL);
           }
-          // beginning of every word of each command
 
           // HERE IS THE END OF 1 COMMAND
 
-          // if(i < cmdLine.numCommands - 1) {
-          //   printf("| ");
-          // }
     	}
 
     	if(cmdLine.append)
@@ -87,7 +83,8 @@ int main(int argc, char *argv[])
     	 * background execution, etc.
     	 */
 
-    	printf("\n");
+      // seems not to be needed anymore
+    	// printf("\n");
 
     	if(input == stdin)
     	{

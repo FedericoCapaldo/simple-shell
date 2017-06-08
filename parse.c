@@ -1,4 +1,5 @@
 #include "parse.h"
+#include <string.h>
 
 /*
 ** Some little helper functions (could be macros, but functions are safer).
@@ -29,7 +30,7 @@ int Parse(char *line, struct commandLine *sc)
     sc->infile = sc->outfile = sc->argv[0] = NULL;
     sc->numCommands = 0;
     sc->cmdStart[0] = 0;    /* the 0th command starts at argv[0] */
-    
+
     /*
     ** This is the main loop, reading arguments into argv[].
     ** We check against MAX_ARGS-1 since the last one must be NULL.
@@ -52,7 +53,7 @@ int Parse(char *line, struct commandLine *sc)
         ** At this point, "line" is pointing at a non-space character; it
         ** may be the start of an argument, or it may be a special character.
         */
-        
+
         switch(*line)
         {
         case '|':
@@ -91,7 +92,7 @@ int Parse(char *line, struct commandLine *sc)
             sc->argv[argc++] = line;
             break;
         }
-        
+
         while(*line && !isSeparator(*line))  /* find the end of the argument */
             ++line;
         if(*line == '\0')        /* end-of-line, we're done */
