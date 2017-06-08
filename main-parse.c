@@ -49,21 +49,24 @@ int main(int argc, char *argv[])
     	{
           // beginning of each command, so pipe and fork should have happened here.
 
+          int startCommand =cmdLine.cmdStart[i];
+
           // if command is exit
-          if (strcmp(cmdLine.argv[cmdLine.cmdStart[i]],"exit") == 0 ) {
+          if (strcmp(cmdLine.argv[startCommand],"exit") == 0 ) {
             return 0;
           }
 
 
           // if command is cd
-          if(strcmp(cmdLine.argv[cmdLine.cmdStart[i]], "cd") == 0) {
-            if (cmdLine.argv[cmdLine.cmdStart[i]+1] == NULL) {
+          if(strcmp(cmdLine.argv[startCommand], "cd") == 0) {
+            char *cdArgument = cmdLine.argv[startCommand+1];
+            if (cdArgument == NULL) {
               if(chdir(getenv("HOME")) != 0) {
                 perror(getenv("HOME"));
               }
             } else {
-              if(chdir(cmdLine.argv[cmdLine.cmdStart[i]+1]) != 0) {
-                perror(cmdLine.argv[cmdLine.cmdStart[i]+1]);
+              if(chdir(cdArgument) != 0) {
+                perror(cdArgument);
               };
             }
             continue;
@@ -73,13 +76,11 @@ int main(int argc, char *argv[])
           pid_t pid = fork();
 
           if (pid == 0) { // child process
-            for(int j=cmdLine.cmdStart[i]; cmdLine.argv[j] != NULL; j++) {
-              if(execvp(cmdLine.argv[j], cmdLine.argv) == -1) {
-                // perror(cmdLine.argv[j]); // not sure if I should print this message
-                printf("nsh: %s: command not found\n", cmdLine.argv[j]);
-              }
-              exit(EXIT_FAILURE); // if it arrives at this point it means that an error has been prompted
+            if(execvp(cmdLine.argv[startCommand], cmdLine.argv) == -1) {
+              // perror(cmdLine.argv[j]); // not sure if I should print this message
+              printf("nsh: %s: command not found\n", cmdLine.argv[startCommand]);
             }
+            exit(EXIT_FAILURE); // if it arrives at this point it means that an error has been prompted
           } else { // parent process
             wait(NULL);
           }
