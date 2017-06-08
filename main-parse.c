@@ -48,9 +48,27 @@ int main(int argc, char *argv[])
     	for(i=0; i < cmdLine.numCommands; i++)
     	{
           // beginning of each command, so pipe and fork should have happened here.
+
+          // if command is exit
           if (strcmp(cmdLine.argv[cmdLine.cmdStart[i]],"exit") == 0 ) {
             return 0;
           }
+
+
+          // if command is cd
+          if(strcmp(cmdLine.argv[cmdLine.cmdStart[i]], "cd") == 0) {
+            if (cmdLine.argv[cmdLine.cmdStart[i]+1] == NULL) {
+              if(chdir(getenv("HOME")) != 0) {
+                perror(getenv("HOME"));
+              }
+            } else {
+              if(chdir(cmdLine.argv[cmdLine.cmdStart[i]+1]) != 0) {
+                perror(cmdLine.argv[cmdLine.cmdStart[i]+1]);
+              };
+            }
+            continue;
+          }
+
 
           pid_t pid = fork();
 
