@@ -1,18 +1,23 @@
 #include "parse.c"
 #include <assert.h>
 #include <stdio.h>
-#include <string.h>
+#include <unistd.h> //dup2
+#include <string.h> // strlen
 #include <sys/wait.h>
 #include <ctype.h> //for isdigit()
 
 /*
 ** A very simple main program that re-prints the line after it's been scanned and parsed.
 */
-
+// NO AMOUNT OF WORRY WILL MAKE THE FUTURE BETTER. NO AMOUNT OF WORRY WILL MAKE YOU ACHIEVE ANYTHING. FOCUS.
 
 int exit_command(char **argv) {
+    if(argv[1] == NULL) {
+      return 0;
+    }
+
     int length = strlen(argv[1]);
-    if (length > 10) {
+    if (length > 10 || length == 0) {
       // too big exit status so exit(0)
       return 0;
     }
@@ -79,44 +84,108 @@ int main(int argc, char *argv[])
 
     	Parse(line, &cmdLine);
 
-
-    	for(i=0; i < cmdLine.numCommands; i++)
-    	{
+      int index = 0;
+    	// for(i=0; i < cmdLine.numCommands; i++)
+    	// {
         // this is just to stop at the first command right now
-        if (i > 0) {
-          continue;
-        }
+        // if (i > 0) {
+        //   continue;
+        // }
+
           // beginning of each command, so pipe and fork should have happened here.
 
-          int startCommandIndex =cmdLine.cmdStart[i];
+          int firstCommandIndex =cmdLine.cmdStart[index];
 
           // checking for local commands that do not need a fork
-          if(strcmp(cmdLine.argv[startCommandIndex],"exit") == 0) {
+          if(strcmp(cmdLine.argv[firstCommandIndex],"exit") == 0) {
             return exit_command(cmdLine.argv);
-          } else if (strcmp(cmdLine.argv[startCommandIndex],"cd") == 0) {
+          } else if (strcmp(cmdLine.argv[firstCommandIndex],"cd") == 0) {
             cd_command(cmdLine.argv);
             continue;
           }
 
+          pid_t pid1, pid2;
+          int status;
+          int pipefd[2];
+          char *argv1[] = {"cat", "parse.c", NULL};
+          char *argv2[] = {"grep", "int", NULL};
 
-          pid_t pid = fork();
-          if (pid < 0) {
+          pipe(pipefd);
+
+          pid1 = fork();
+          if (pid1 < 0) {
             perror("fork");
           }
 
-          if (pid == 0) { // child process
-            if(execvp(cmdLine.argv[startCommandIndex], cmdLine.argv) == -1) {
-              // perror(cmdLine.argv[j]); // not sure if I should print this message
-              printf("nsh: %s: command not found\n", cmdLine.argv[startCommandIndex]); // this seems more appropriate err message
+          if (pid1 == 0) { // child process
+            close(pipefd[0]); // close the reading end in first child
+            printf("%s\n", "hanging in the FIRST child");
+            if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
+                perror("dup2");
+            } // connect stdout to writing end of the pipe
+
+            if(execvp(argv1[0], argv1) == -1) {
+              // perror(cmdLine.argv[firstCommandIndex]); // not sure if I should print this message
+              printf("nsh: %s: command not found\n", cmdLine.argv[firstCommandIndex]); // this seems more appropriate err message
+              exit(EXIT_FAILURE); // if program arrives at this point it means that an error has been prompted
             }
-            exit(EXIT_FAILURE); // if program arrives at this point it means that an error has been prompted
+            printf("%s\n", "just before return in child 1" );
+            return 1;
           } else { // parent process
-            wait(NULL);
+            // wait(NULL);
+            // waitpid(pid1, &status, WUNTRACED);
+            // do {
+            //   waitpid(pid1, &status, WUNTRACED);
+            // } while (!WIFEXITED(status) && !WIFSIGNALED(status));
           }
 
           // HERE IS THE END OF 1 COMMAND
-    	}
+    	// } //end of commented out for loop
 
+          ++index; // increase index of array that holds indexeses of commands
+          int secondCommandIndex =cmdLine.cmdStart[index];
+
+          pid2 = fork();
+          if (pid2 < 0) {
+            perror("fork");
+          }
+
+          if (pid2 == 0) { // child process
+            close(pipefd[1]); // close the writing end in second child
+            if(dup2(pipefd[0], STDIN_FILENO) == -1) {
+              perror("dup2");
+            } // connect stdin to reading end of the pipe
+            printf("%s\n", "hanging in the SECOND child");
+            if(execvp(argv2[0], argv2) == -1) {
+              // perror(cmdLine.argv[firstCommandIndex]);
+              printf("nsh: %s: command not found\n", cmdLine.argv[secondCommandIndex]); // this seems more appropriate err message
+              exit(EXIT_FAILURE);
+            }
+            printf("%s\n", "just before return in child 2" );
+            return 1;
+          } else { // parent process
+            // wait(NULL);
+            // waitpid(pid2, &status, WUNTRACED);
+            // do {
+            //   waitpid(pid2, &status, WUNTRACED);
+            // } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+            // printf("%d\n", getpid());
+            // printf("%s\n", "sure is the parent only?");
+          }
+
+
+          // if you don't close the fd, code breaks.
+          close(pipefd[0]);
+          close(pipefd[1]);
+
+          // waitpid(pid1);
+          // waitpid(pid2);
+          // wait(NULL);
+          printf("%s\n", "does it get here?");
+          waitpid(pid1, &status, WUNTRACED);
+          waitpid(pid2, &status, WUNTRACED);
+          printf("%s\n", "supposedly terminated children");
+          // return 0;
     	if(cmdLine.append)
     	{
     	    /* verify that if we're appending there should be an outfile! */
