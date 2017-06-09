@@ -3,10 +3,40 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/wait.h>
+#include <ctype.h> //for isdigit()
 
 /*
 ** A very simple main program that re-prints the line after it's been scanned and parsed.
 */
+
+
+int exit_command(char **argv) {
+    int length = strlen(argv[1]);
+    int statusNumber = 0;
+    for(int i=0; i<length; ++i) {
+      if(!isdigit(argv[1][i])) {
+        return 0;
+      }
+      int x = argv[1][i] - 48; // convert ascii char digit to int
+      statusNumber =  (statusNumber * 10) + x;
+    }
+    return statusNumber;
+}
+
+void cd_command(char **argv) {
+    char *cdArgument = argv[1];
+    if (cdArgument == NULL) {
+      if(chdir(getenv("HOME")) != 0) {
+        perror(getenv("HOME"));
+      }
+    } else {
+      if(chdir(cdArgument) != 0) {
+        perror(cdArgument);
+      };
+    }
+}
+
+
 int main(int argc, char *argv[])
 {
     FILE *input;
@@ -47,46 +77,39 @@ int main(int argc, char *argv[])
 
     	for(i=0; i < cmdLine.numCommands; i++)
     	{
+        // this is just to stop at the first command right now
+        if (i > 0) {
+          continue;
+        }
           // beginning of each command, so pipe and fork should have happened here.
 
-          int startCommand =cmdLine.cmdStart[i];
+          int startCommandIndex =cmdLine.cmdStart[i];
 
-          // if command is exit
-          if (strcmp(cmdLine.argv[startCommand],"exit") == 0 ) {
-            return 0;
-          }
-
-
-          // if command is cd
-          if(strcmp(cmdLine.argv[startCommand], "cd") == 0) {
-            char *cdArgument = cmdLine.argv[startCommand+1];
-            if (cdArgument == NULL) {
-              if(chdir(getenv("HOME")) != 0) {
-                perror(getenv("HOME"));
-              }
-            } else {
-              if(chdir(cdArgument) != 0) {
-                perror(cdArgument);
-              };
-            }
+          // checking for local commands that do not need a fork
+          if(strcmp(cmdLine.argv[startCommandIndex],"exit") == 0) {
+            return exit_command(cmdLine.argv);
+          } else if (strcmp(cmdLine.argv[startCommandIndex],"cd") == 0) {
+            cd_command(cmdLine.argv);
             continue;
           }
 
 
           pid_t pid = fork();
+          if (pid < 0) {
+            perror("fork");
+          }
 
           if (pid == 0) { // child process
-            if(execvp(cmdLine.argv[startCommand], cmdLine.argv) == -1) {
+            if(execvp(cmdLine.argv[startCommandIndex], cmdLine.argv) == -1) {
               // perror(cmdLine.argv[j]); // not sure if I should print this message
-              printf("nsh: %s: command not found\n", cmdLine.argv[startCommand]);
+              printf("nsh: %s: command not found\n", cmdLine.argv[startCommandIndex]); // this seems more appropriate err message
             }
-            exit(EXIT_FAILURE); // if it arrives at this point it means that an error has been prompted
+            exit(EXIT_FAILURE); // if program arrives at this point it means that an error has been prompted
           } else { // parent process
             wait(NULL);
           }
 
           // HERE IS THE END OF 1 COMMAND
-
     	}
 
     	if(cmdLine.append)
