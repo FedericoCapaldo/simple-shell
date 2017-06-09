@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
                 perror("dup2");
             } // connect stdout to writing end of the pipe
 
-            if(execvp(argv1[0], argv1) == -1) {
+            if(execvp(cmdLine.argv[firstCommandIndex], &cmdLine.argv[firstCommandIndex]) == -1) {
               // perror(cmdLine.argv[firstCommandIndex]); // not sure if I should print this message
               printf("nsh: %s: command not found\n", cmdLine.argv[firstCommandIndex]); // this seems more appropriate err message
               exit(EXIT_FAILURE); // if program arrives at this point it means that an error has been prompted
@@ -156,7 +156,7 @@ int main(int argc, char *argv[])
               perror("dup2");
             } // connect stdin to reading end of the pipe
             printf("%s\n", "hanging in the SECOND child");
-            if(execvp(argv2[0], argv2) == -1) {
+            if(execvp(cmdLine.argv[secondCommandIndex], &cmdLine.argv[secondCommandIndex]) == -1) {
               // perror(cmdLine.argv[firstCommandIndex]);
               printf("nsh: %s: command not found\n", cmdLine.argv[secondCommandIndex]); // this seems more appropriate err message
               exit(EXIT_FAILURE);
