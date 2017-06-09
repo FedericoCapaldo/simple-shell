@@ -12,6 +12,11 @@
 
 int exit_command(char **argv) {
     int length = strlen(argv[1]);
+    if (length > 10) {
+      // too big exit status so exit(0)
+      return 0;
+    }
+
     int statusNumber = 0;
     for(int i=0; i<length; ++i) {
       if(!isdigit(argv[1][i])) {
