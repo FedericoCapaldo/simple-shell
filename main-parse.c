@@ -15,20 +15,20 @@ void sigintCHandler(int sig)
 
 int exit_command(char **argv) {
     if(argv[1] == NULL) {
-      exit(0);
+      exit(EXIT_SUCCESS);
     }
 
     int length = strlen(argv[1]);
     if (length > 10 || length == 0) {
-      // too big exit status so exit(0)
-      exit(0);
+      // too big exit status so exit failure
+      exit(EXIT_FAILURE);
     }
 
     int statusNumber = 0;
     for(int i=0; i<length; ++i) {
       if(!isdigit(argv[1][i])) {
-        // return non-zero as exit with error, when the code provided is not a valid number
-        exit(1);
+        // exit fail when the code provided is not a valid number
+        exit(EXIT_FAILURE);
       }
       int x = argv[1][i] - 48; // convert ascii char digit to int
       statusNumber =  (statusNumber * 10) + x;
@@ -47,6 +47,33 @@ void cd_command(char **argv) {
         perror(cdArgument);
       };
     }
+}
+
+void exec_script(char *filename) {
+
+  if( access( filename, F_OK ) < 0 ) {
+    // file doesn't exist
+    perror(filename);
+    exit(EXIT_FAILURE);
+  }
+
+  char cwd[1024];
+  if (getcwd(cwd, sizeof(cwd)) == NULL) {
+    perror("getcwd failed");
+    exit(EXIT_FAILURE);
+  }
+
+  char *script = malloc((strlen(cwd)+1+strlen(filename)+1) * sizeof(char));
+
+  strcpy(script, cwd);
+  strcat(script, "/");
+  strcat(script, filename);
+
+  printf("%s\n", script);
+
+  execl("/bin/sh", "sh", script, (char *) NULL);
+  perror(filename);
+  exit(EXIT_FAILURE);
 }
 
 void single_child(int commandIndex, char *argv[]) {
@@ -129,12 +156,11 @@ int main(int argc, char *argv[])
 
     if(argc == 2)
     {
-    	input = fopen(argv[1], "r");
-    	if(input == NULL)
-    	{
-  	    perror(argv[1]);
-  	    exit(1);
-    	}
+      // if an argument is given it means it's trying to exec a script.
+      exec_script(argv[1]);
+    } else if (argc > 2) {
+      printf("%s\n", "Too many arguments given. Stop.");
+      exit(EXIT_FAILURE);
     } else {
     	assert(argc == 1);
     	input = stdin;
@@ -183,6 +209,7 @@ int main(int argc, char *argv[])
         int secondCommandIndex = cmdLine.cmdStart[index];
         double_child(firstCommandIndex, secondCommandIndex, cmdLine.argv);
       }
+      // PUT ERROR MESSAGE FOR MORE THAN 1 PIPE
 
       // if(cmdLine.append)
     	// {
