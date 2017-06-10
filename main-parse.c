@@ -6,6 +6,12 @@
 #include <sys/wait.h>
 #include <ctype.h> //for isdigit()
 
+#define TRUE 1
+#define FALSE 0
+
+int in= FALSE;
+int out= FALSE;
+
 void sigintCHandler(int sig)
 {
     signal(SIGINT, sigintCHandler);
@@ -76,7 +82,7 @@ void exec_script(char *filename) {
   exit(EXIT_FAILURE);
 }
 
-void single_child(int commandIndex, char *argv[]) {
+void single_child(int commandIndex, struct commandLine *cmdLine) {
   pid_t pid;
   pid = fork();
   if (pid < 0) {
@@ -86,9 +92,23 @@ void single_child(int commandIndex, char *argv[]) {
   if (pid == 0) { // child process
     printf("%s\n", "hanging in the SINGLE child");
 
-    if(execvp(argv[commandIndex], &argv[commandIndex]) == -1) {
+      if (in) {
+          int fd0 = open(cmdLine->infile, O_RDONLY);
+          dup2(fd0, STDIN_FILENO);
+          close(fd0);
+          in = FALSE;
+      }
+
+      if (out) {
+          int fd1 = creat(cmdLine->outfile , 0644) ;
+          dup2(fd1, STDOUT_FILENO);
+          close(fd1);
+          out = FALSE;
+      }
+
+    if(execvp(cmdLine->argv[commandIndex], &cmdLine->argv[commandIndex]) == -1) {
       // print or perror
-      printf("nsh: %s: command not found\n", argv[commandIndex]);
+      printf("nsh: %s: command not found\n", cmdLine->argv[commandIndex]);
     }
     // exec gets here only in case of error
     exit(EXIT_FAILURE);
@@ -97,7 +117,7 @@ void single_child(int commandIndex, char *argv[]) {
   }
 }
 
-void double_child(int firstCommandIndex, int secondCommandIndex, char *argv[]) {
+void double_child(int firstCommandIndex, int secondCommandIndex, struct commandLine *cmdLine) {
   pid_t pid1, pid2;
   int status;
   int pipefd[2];
@@ -116,8 +136,15 @@ void double_child(int firstCommandIndex, int secondCommandIndex, char *argv[]) {
         perror("dup2");
     } // connect stdout to writing end of the pipe
 
-    if(execvp(argv[firstCommandIndex], &argv[firstCommandIndex]) == -1) {
-      printf("nsh: %s: command not found\n", argv[firstCommandIndex]);
+    if (in) {
+        int fd0 = open(cmdLine->infile, O_RDONLY);
+        dup2(fd0, STDIN_FILENO);
+        close(fd0);
+        in = FALSE;
+    }
+
+    if(execvp(cmdLine->argv[firstCommandIndex], &cmdLine->argv[firstCommandIndex]) == -1) {
+      printf("nsh: %s: command not found\n", cmdLine->argv[firstCommandIndex]);
     }
     exit(EXIT_FAILURE);
   }
@@ -132,9 +159,17 @@ void double_child(int firstCommandIndex, int secondCommandIndex, char *argv[]) {
     if(dup2(pipefd[0], STDIN_FILENO) == -1) {
       perror("dup2");
     } // connect stdin to reading end of the pipe
+
+    if (out) {
+        int fd1 = creat(cmdLine->outfile , 0644) ;
+        dup2(fd1, STDOUT_FILENO);
+        close(fd1);
+        out = FALSE;
+    }
+
     printf("%s\n", "hanging in the SECOND child");
-    if(execvp(argv[secondCommandIndex], &argv[secondCommandIndex]) == -1) {
-      printf("nsh: %s: command not found\n", argv[secondCommandIndex]);
+    if(execvp(cmdLine->argv[secondCommandIndex], &cmdLine->argv[secondCommandIndex]) == -1) {
+      printf("nsh: %s: command not found\n", cmdLine->argv[secondCommandIndex]);
     }
     exit(EXIT_FAILURE);
   }
@@ -202,13 +237,23 @@ int main(int argc, char *argv[])
         continue;
       }
 
+      // check for in and out files
+      if(cmdLine.outfile) {
+    	  //  printf(">'%s'", cmdLine.outfile);
+        out = TRUE;
+      }
+      if (cmdLine.infile) {
+        in = TRUE;
+      }
+
       if (cmdLine.numCommands == 1) {
-        single_child(firstCommandIndex, cmdLine.argv);
+        single_child(firstCommandIndex, &cmdLine);
       } else if (cmdLine.numCommands == 2) {
         ++index; // increase index of array that holds indexeses of commands
         int secondCommandIndex = cmdLine.cmdStart[index];
-        double_child(firstCommandIndex, secondCommandIndex, cmdLine.argv);
+        double_child(firstCommandIndex, secondCommandIndex, &cmdLine);
       }
+
       // PUT ERROR MESSAGE FOR MORE THAN 1 PIPE
 
       // if(cmdLine.append)
@@ -217,9 +262,7 @@ int main(int argc, char *argv[])
   	  //   assert(cmdLine.outfile);
   	  //   printf(">");
     	// }
-    	// if(cmdLine.outfile) {
-    	//    printf(">'%s'", cmdLine.outfile);
-      // }
+
 
     	if(input == stdin)
     	{
