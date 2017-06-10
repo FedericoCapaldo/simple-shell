@@ -84,8 +84,6 @@ void single_child(int commandIndex, struct commandLine *cmdLine) {
   }
 
   if (pid == 0) { // child process
-    printf("%s\n", "hanging in the SINGLE child");
-
       if (cmdLine->infile) {
           int fd0 = open(cmdLine->infile, O_RDONLY);
           dup2(fd0, STDIN_FILENO);
@@ -123,7 +121,6 @@ void double_child(int firstCommandIndex, int secondCommandIndex, struct commandL
 
   if (pid1 == 0) { // child process
     close(pipefd[0]); // close the reading end in first child
-    printf("%s\n", "hanging in the FIRST child");
     if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
         perror("dup2");
     } // connect stdout to writing end of the pipe
@@ -157,7 +154,6 @@ void double_child(int firstCommandIndex, int secondCommandIndex, struct commandL
         close(fd1);
     }
 
-    printf("%s\n", "hanging in the SECOND child");
     if(execvp(cmdLine->argv[secondCommandIndex], &cmdLine->argv[secondCommandIndex]) == -1) {
       printf("nsh: %s: command not found\n", cmdLine->argv[secondCommandIndex]);
     }
@@ -168,7 +164,6 @@ void double_child(int firstCommandIndex, int secondCommandIndex, struct commandL
   close(pipefd[1]);
   waitpid(pid1, &status, WUNTRACED);
   waitpid(pid2, &status, WUNTRACED);
-  printf("%s\n", "supposedly terminated children");
 }
 
 int main(int argc, char *argv[])
