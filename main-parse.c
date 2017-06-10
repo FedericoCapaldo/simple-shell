@@ -15,25 +15,25 @@ void sigintCHandler(int sig)
 
 int exit_command(char **argv) {
     if(argv[1] == NULL) {
-      return 0;
+      exit(0);
     }
 
     int length = strlen(argv[1]);
     if (length > 10 || length == 0) {
       // too big exit status so exit(0)
-      return 0;
+      exit(0);
     }
 
     int statusNumber = 0;
     for(int i=0; i<length; ++i) {
       if(!isdigit(argv[1][i])) {
         // return non-zero as exit with error, when the code provided is not a valid number
-        return 1;
+        exit(1);
       }
       int x = argv[1][i] - 48; // convert ascii char digit to int
       statusNumber =  (statusNumber * 10) + x;
     }
-    return statusNumber;
+    exit(statusNumber);
 }
 
 void cd_command(char **argv) {
@@ -79,9 +79,8 @@ int main(int argc, char *argv[])
     }
 
     setlinebuf(input);
-    while(fgets(line, sizeof(line), input))
-    {
-    	int i;
+    while(fgets(line, sizeof(line), input)) {
+      int i;
     	struct commandLine cmdLine;
 
     	if(line[strlen(line)-1] == '\n') {
@@ -102,85 +101,85 @@ int main(int argc, char *argv[])
 
       // checking for local commands that do not need a fork
       if(strcmp(cmdLine.argv[firstCommandIndex],"exit") == 0) {
-        return exit_command(cmdLine.argv);
+        exit_command(cmdLine.argv);
       } else if (strcmp(cmdLine.argv[firstCommandIndex],"cd") == 0) {
         cd_command(cmdLine.argv);
         printf("? ");
         continue;
       }
 
-          if (cmdLine.numCommands == 1) {
-            pid_t pid;
-            pid = fork();
-            if (pid < 0) {
-              perror("fork");
-            }
+      if (cmdLine.numCommands == 1) {
+        pid_t pid;
+        pid = fork();
+        if (pid < 0) {
+          perror("fork");
+        }
 
-            if (pid == 0) { // child process
-              printf("%s\n", "hanging in the SINGLE child");
+        if (pid == 0) { // child process
+          printf("%s\n", "hanging in the SINGLE child");
 
-              if(execvp(cmdLine.argv[firstCommandIndex], &cmdLine.argv[firstCommandIndex]) == -1) {
-                // print or perror
-                printf("nsh: %s: command not found\n", cmdLine.argv[firstCommandIndex]);
-              }
-              // exec gets here only in case of error
-              exit(EXIT_FAILURE);
-              return 1;
-            } else { // parent process
-              wait(NULL);
-            }
-          } else if (cmdLine.numCommands == 2) {
-            pid_t pid1, pid2;
-            int status;
-            int pipefd[2];
-
-            pipe(pipefd);
-
-            pid1 = fork();
-            if (pid1 < 0) {
-              perror("fork");
-            }
-
-            if (pid1 == 0) { // child process
-              close(pipefd[0]); // close the reading end in first child
-              printf("%s\n", "hanging in the FIRST child");
-              if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
-                  perror("dup2");
-              } // connect stdout to writing end of the pipe
-
-              if(execvp(cmdLine.argv[firstCommandIndex], &cmdLine.argv[firstCommandIndex]) == -1) {
-                printf("nsh: %s: command not found\n", cmdLine.argv[firstCommandIndex]);
-              }
-              exit(EXIT_FAILURE);
-              return 1;
-            }
-
-            ++index; // increase index of array that holds indexeses of commands
-            int secondCommandIndex =cmdLine.cmdStart[index];
-
-            pid2 = fork();
-            if (pid2 < 0) {
-              perror("fork");
-            }
-
-            if (pid2 == 0) { // child process
-              close(pipefd[1]); // close the writing end in second child
-              if(dup2(pipefd[0], STDIN_FILENO) == -1) {
-                perror("dup2");
-              } // connect stdin to reading end of the pipe
-              printf("%s\n", "hanging in the SECOND child");
-              if(execvp(cmdLine.argv[secondCommandIndex], &cmdLine.argv[secondCommandIndex]) == -1) {
-                printf("nsh: %s: command not found\n", cmdLine.argv[secondCommandIndex]);
-              }
-              exit(EXIT_FAILURE);
-            }
-
-            close(pipefd[0]);
-            close(pipefd[1]);
-            waitpid(pid1, &status, WUNTRACED);
-            waitpid(pid2, &status, WUNTRACED);
-            printf("%s\n", "supposedly terminated children");
+          if(execvp(cmdLine.argv[firstCommandIndex], &cmdLine.argv[firstCommandIndex]) == -1) {
+            // print or perror
+            printf("nsh: %s: command not found\n", cmdLine.argv[firstCommandIndex]);
           }
+          // exec gets here only in case of error
+          exit(EXIT_FAILURE);
+          return 1;
+        } else { // parent process
+          wait(NULL);
+        }
+      } else if (cmdLine.numCommands == 2) {
+        pid_t pid1, pid2;
+        int status;
+        int pipefd[2];
+
+        pipe(pipefd);
+
+        pid1 = fork();
+        if (pid1 < 0) {
+          perror("fork");
+        }
+
+        if (pid1 == 0) { // child process
+          close(pipefd[0]); // close the reading end in first child
+          printf("%s\n", "hanging in the FIRST child");
+          if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
+              perror("dup2");
+          } // connect stdout to writing end of the pipe
+
+          if(execvp(cmdLine.argv[firstCommandIndex], &cmdLine.argv[firstCommandIndex]) == -1) {
+            printf("nsh: %s: command not found\n", cmdLine.argv[firstCommandIndex]);
+          }
+          exit(EXIT_FAILURE);
+          return 1;
+        }
+
+        ++index; // increase index of array that holds indexeses of commands
+        int secondCommandIndex =cmdLine.cmdStart[index];
+
+        pid2 = fork();
+        if (pid2 < 0) {
+          perror("fork");
+        }
+
+        if (pid2 == 0) { // child process
+          close(pipefd[1]); // close the writing end in second child
+          if(dup2(pipefd[0], STDIN_FILENO) == -1) {
+            perror("dup2");
+          } // connect stdin to reading end of the pipe
+          printf("%s\n", "hanging in the SECOND child");
+          if(execvp(cmdLine.argv[secondCommandIndex], &cmdLine.argv[secondCommandIndex]) == -1) {
+            printf("nsh: %s: command not found\n", cmdLine.argv[secondCommandIndex]);
+          }
+          exit(EXIT_FAILURE);
+        }
+
+        close(pipefd[0]);
+        close(pipefd[1]);
+        waitpid(pid1, &status, WUNTRACED);
+        waitpid(pid2, &status, WUNTRACED);
+        printf("%s\n", "supposedly terminated children");
+      }
 
       // if(cmdLine.append)
     	// {
