@@ -6,12 +6,6 @@
 #include <sys/wait.h>
 #include <ctype.h> //for isdigit()
 
-#define TRUE 1
-#define FALSE 0
-
-int in= FALSE;
-int out= FALSE;
-
 void sigintCHandler(int sig)
 {
     signal(SIGINT, sigintCHandler);
@@ -92,18 +86,16 @@ void single_child(int commandIndex, struct commandLine *cmdLine) {
   if (pid == 0) { // child process
     printf("%s\n", "hanging in the SINGLE child");
 
-      if (in) {
+      if (cmdLine->infile) {
           int fd0 = open(cmdLine->infile, O_RDONLY);
           dup2(fd0, STDIN_FILENO);
           close(fd0);
-          in = FALSE;
       }
 
-      if (out) {
+      if (cmdLine->outfile) {
           int fd1 = creat(cmdLine->outfile , 0644) ;
           dup2(fd1, STDOUT_FILENO);
           close(fd1);
-          out = FALSE;
       }
 
     if(execvp(cmdLine->argv[commandIndex], &cmdLine->argv[commandIndex]) == -1) {
@@ -136,11 +128,10 @@ void double_child(int firstCommandIndex, int secondCommandIndex, struct commandL
         perror("dup2");
     } // connect stdout to writing end of the pipe
 
-    if (in) {
+    if (cmdLine->infile) {
         int fd0 = open(cmdLine->infile, O_RDONLY);
         dup2(fd0, STDIN_FILENO);
         close(fd0);
-        in = FALSE;
     }
 
     if(execvp(cmdLine->argv[firstCommandIndex], &cmdLine->argv[firstCommandIndex]) == -1) {
@@ -160,11 +151,10 @@ void double_child(int firstCommandIndex, int secondCommandIndex, struct commandL
       perror("dup2");
     } // connect stdin to reading end of the pipe
 
-    if (out) {
+    if (cmdLine->outfile) {
         int fd1 = creat(cmdLine->outfile , 0644) ;
         dup2(fd1, STDOUT_FILENO);
         close(fd1);
-        out = FALSE;
     }
 
     printf("%s\n", "hanging in the SECOND child");
@@ -237,32 +227,15 @@ int main(int argc, char *argv[])
         continue;
       }
 
-      // check for in and out files
-      if(cmdLine.outfile) {
-    	  //  printf(">'%s'", cmdLine.outfile);
-        out = TRUE;
-      }
-      if (cmdLine.infile) {
-        in = TRUE;
-      }
-
       if (cmdLine.numCommands == 1) {
         single_child(firstCommandIndex, &cmdLine);
       } else if (cmdLine.numCommands == 2) {
         ++index; // increase index of array that holds indexeses of commands
         int secondCommandIndex = cmdLine.cmdStart[index];
         double_child(firstCommandIndex, secondCommandIndex, &cmdLine);
+      } else {
+        printf("%d pipes are not supported by this version of nsh.\nOnly 1 pipe (2 commands) supported.\n", cmdLine.numCommands-1);
       }
-
-      // PUT ERROR MESSAGE FOR MORE THAN 1 PIPE
-
-      // if(cmdLine.append)
-    	// {
-    	//     /* verify that if we're appending there should be an outfile! */
-  	  //   assert(cmdLine.outfile);
-  	  //   printf(">");
-    	// }
-
 
     	if(input == stdin)
     	{
