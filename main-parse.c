@@ -10,6 +10,12 @@
 ** A very simple main program that re-prints the line after it's been scanned and parsed.
 */
 // NO AMOUNT OF WORRY WILL MAKE THE FUTURE BETTER. NO AMOUNT OF WORRY WILL MAKE YOU ACHIEVE ANYTHING. FOCUS.
+void sigintCHandler(int sig)
+{
+    signal(SIGINT, sigintCHandler);
+    printf("\n? ");
+    fflush(stdout);
+}
 
 int exit_command(char **argv) {
     if(argv[1] == NULL) {
@@ -49,6 +55,9 @@ void cd_command(char **argv) {
 
 int main(int argc, char *argv[])
 {
+   // Set the SIGINT (Ctrl-C) signal handler
+   signal(SIGINT, sigintCHandler);
+
     FILE *input;
     char line[MAX_LINE];
 

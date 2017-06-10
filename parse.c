@@ -28,7 +28,7 @@ int Parse(char *line, struct commandLine *sc)
     line = sc->buf;
 
     sc->infile = sc->outfile = sc->argv[0] = NULL;
-    sc->numCommands = 0;
+    sc->append = sc->numCommands = 0;
     sc->cmdStart[0] = 0;    /* the 0th command starts at argv[0] */
 
     /*
